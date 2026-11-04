@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MLP Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #EEF2F7;
+    --grid: #D6DEEA;
+    --card: #FFFFFF;
+    --ink: #15213A;
+    --ink-soft: #5B6881;
+    --line: #C7D0DE;
+    --marker: #E8561E;
+    --marker-soft: #FBE1D4;
+    --teal: #0F8B8D;
+    --teal-soft: #D3EEEE;
+    --sun: #F7C948;
+    --sun-soft: #FFF3C7;
+    --fog: rgba(238,242,247,0.88);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #121926; --grid: #1E2A3C; --card: #1A2334; --ink: #E6ECF5; --ink-soft: #9AA8BF;
+      --line: #2E3B52; --marker: #FF7A45; --marker-soft: #3E2619; --teal: #3FC1C3; --teal-soft: #163A3B;
+      --sun: #FFD866; --sun-soft: #3D3415; --fog: rgba(18,25,38,0.88);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #121926; --grid: #1E2A3C; --card: #1A2334; --ink: #E6ECF5; --ink-soft: #9AA8BF;
+    --line: #2E3B52; --marker: #FF7A45; --marker-soft: #3E2619; --teal: #3FC1C3; --teal-soft: #163A3B;
+    --sun: #FFD866; --sun-soft: #3D3415; --fog: rgba(18,25,38,0.88);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    font-family: "Instrument Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.5;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  h1, h2, h3 { font-family: "Bricolage Grotesque", "Instrument Sans", sans-serif; font-weight: 700; line-height: 1.1; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: .35rem; }
+  p { margin: 0 0 .75rem; }
+  header { max-width: 1080px; margin: 0 auto; padding: 1.5rem 1.25rem .5rem; }
+  .tagline { color: var(--ink-soft); max-width: 60ch; }
+  nav { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+  nav a {
+    text-decoration: none; color: var(--ink); background: var(--card); border: 1.5px solid var(--line);
+    padding: .5rem 1rem; border-radius: 999px; font-weight: 600;
+  }
+  nav a[aria-current="page"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  nav a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 1rem 1.25rem 4rem; }
+  section.view { display: none; }
+  section.view.active { display: block; }
+  .intro { max-width: 62ch; margin-bottom: 1.25rem; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 1.25rem; align-items: start; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; }
+  .panel + .panel { margin-top: 1rem; }
+  canvas { width: 100%; height: auto; display: block; border-radius: 10px; background: var(--paper); }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px;
+    border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+    padding: .55rem .95rem;
+  }
+  button:hover { border-color: var(--ink); }
+  button.primary { background: var(--marker); border-color: var(--marker); color: #fff; }
+  button.primary:hover { filter: brightness(.95); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .chips button { padding: .35rem .75rem; border-radius: 999px; font-weight: 500; }
+  .chips button[aria-pressed="true"] { background: var(--teal-soft); border-color: var(--teal); color: var(--ink); }
+  label { font-weight: 500; }
+  input[type=range] { width: 100%; accent-color: var(--marker); }
+  .stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-top: .75rem; }
+  .stat div { background: var(--paper); border-radius: 10px; padding: .5rem .65rem; }
+  .stat small { display: block; color: var(--ink-soft); }
+  .stat b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .msg { min-height: 2.6em; padding: .6rem .8rem; border-radius: 10px; background: var(--sun-soft); border-left: 4px solid var(--sun); margin-top: .75rem; }
+  .msg.good { background: var(--teal-soft); border-left-color: var(--teal); }
+  .msg.bad { background: var(--marker-soft); border-left-color: var(--marker); }
+  .log { font-variant-numeric: tabular-nums; font-size: .9rem; max-height: 220px; overflow: auto; margin: .5rem 0 0; padding: 0; list-style: none; }
+  .log li { display: grid; grid-template-columns: 2.5rem 1fr 1fr 1fr; gap: .5rem; padding: .25rem 0; border-top: 1px dashed var(--line); }
+  .log li.head { color: var(--ink-soft); border-top: none; }
+  .wide { overflow-x: auto; }
+  /* Blame game */
+  svg.net { width: 100%; height: auto; display: block; }
+  .net text { font-family: "Instrument Sans", sans-serif; fill: var(--ink); }
+  .net .edge { stroke: var(--line); stroke-width: 3; fill: none; transition: stroke .3s, stroke-width .3s; }
+  .net .edge.hot { stroke: var(--marker); stroke-width: 5; }
+  .net .edge.dead { stroke-dasharray: 6 6; }
+  .net .node { fill: var(--card); stroke: var(--ink); stroke-width: 2; }
+  .net .node.hot { stroke: var(--marker); stroke-width: 3.5; fill: var(--marker-soft); }
+  .net .node.dead { stroke: var(--ink-soft); stroke-dasharray: 5 4; }
+  .net .val { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .net .lbl { font-size: 13px; font-weight: 600; }
+  .net .wlbl { font-size: 12px; fill: var(--ink-soft); }
+  table.blame { width: 100%; border-collapse: collapse; }
+  table.blame th, table.blame td { text-align: left; padding: .4rem .35rem; border-top: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+  table.blame th { color: var(--ink-soft); font-weight: 500; border-top: none; }
+  .tri { display: inline-flex; gap: .25rem; }
+  .tri button { padding: .3rem .55rem; border-radius: 8px; font-weight: 500; }
+  .tri button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  td.result { font-weight: 600; }
+  td.result.ok { color: var(--teal); }
+  td.result.no { color: var(--marker); }
+  .eq { font-variant-numeric: tabular-nums; background: var(--paper); border-radius: 10px; padding: .6rem .8rem; margin: .5rem 0; }
+  .eq.hot { outline: 2px solid var(--marker); }
+  .formula { font-size: .92rem; color: var(--ink-soft); }
+  details summary { cursor: pointer; font-weight: 600; }
+  .score { font-family: "Bricolage Grotesque", sans-serif; font-size: 2rem; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>MLP Arcade</h1>
+  <p class="tagline">Small games for learning how a multilayer perceptron trains. Six games, in teaching order: each one isolates a single idea so you can feel it before you derive it.</p>
+  <nav>
+    <a href="#neuron" id="tab-neuron">Be the Neuron</a>
+    <a href="#curve" id="tab-curve">Shape the Curve</a>
+    <a href="#hiker" id="tab-hiker">Blindfolded Hiker</a>
+    <a href="#blame" id="tab-blame">Blame Game</a>
+    <a href="#dots" id="tab-dots">Separate the Dots</a>
+    <a href="#overfit" id="tab-overfit">Memorize vs Learn</a>
+  </nav>
+</header>
+
+<main>
+<!-- ================= HIKER ================= -->
+<section class="view" id="view-hiker">
+  <p class="intro">You are a weight <b>w</b> standing on a loss landscape in thick fog. You can’t see the valley, only the <b>slope under your feet</b>. Choose a learning rate and step downhill. Reach the lowest point before you run out of steps.</p>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <canvas id="hikeCanvas" width="900" height="420" aria-label="Loss landscape"></canvas>
+        <div class="stat">
+          <div><small>Step</small><b id="hStep">0 / 20</b></div>
+          <div><small>Position w</small><b id="hW">–</b></div>
+          <div><small>Loss L(w)</small><b id="hLoss">–</b></div>
+          <div><small>Slope dL/dw</small><b id="hSlope">–</b></div>
+        </div>
+        <div class="msg" id="hMsg">Pick a learning rate, then step downhill.</div>
+      </div>
+      <div class="panel">
+        <h3>Hike log</h3>
+        <div class="wide">
+        <ul class="log" id="hLog"><li class="head"><span>#</span><span>w</span><span>slope</span><span>loss</span></li></ul>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Landscape</h3>
+        <div class="chips" id="hLand">
+          <button data-land="bowl" aria-pressed="true">Gentle bowl</button>
+          <button data-land="valleys" aria-pressed="false">Two valleys</button>
+          <button data-land="canyon" aria-pressed="false">Narrow canyon</button>
+          <button data-land="plateau" aria-pressed="false">Plateau</button>
+        </div>
+        <h3 style="margin-top:1rem">Learning rate: <span id="hLrVal">0.20</span></h3>
+        <input type="range" id="hLr" min="0.02" max="2.2" step="0.02" value="0.2" aria-label="Learning rate">
+        <p class="formula">Each step: w ← w − lr × slope</p>
+        <div class="row" style="margin-top:.5rem">
+          <button class="primary" id="hStepBtn">Step downhill</button>
+          <button id="hReveal">Reveal landscape</button>
+          <button id="hNew">New hike</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>What to notice</h3>
+        <p>The step is lr × slope, so steps shrink on their own as the slope flattens near the bottom. A big learning rate overshoots and bounces to the other side of the valley, or flies off the map. A tiny one is safe but slow. On a plateau the slope is almost zero, so steps shrink even if the valley is far away.</p>
+        <p class="formula">To see bouncing: gentle bowl with lr 1.8 (zig-zag that slowly settles), lr 2.0 (bounces forever), lr 2.1 (bounces wider and wider). Narrow canyon with lr 0.30 does the same on a much steeper valley.</p>
+        <details><summary>Classroom prompts</summary>
+          <p>Find the largest learning rate that still converges on the narrow canyon. Why is it smaller than on the gentle bowl?</p>
+          <p>On two valleys, start on the right. Can any learning rate get you to the deeper valley on the left?</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BLAME ================= -->
+<section class="view" id="view-blame">
+  <p class="intro" id="bIntro"></p>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="chips" id="bLevels"></div>
+        <svg class="net" id="netSvg" viewBox="0 0 640 300" aria-label="Network diagram"></svg>
+      </div>
+      <div class="panel">
+        <h3>Forward pass</h3>
+        <div id="fwd"></div>
+      </div>
+      <div class="panel" id="bwdPanel" hidden>
+        <h3>Backward pass, one layer at a time</h3>
+        <div id="bwd"></div>
+        <div class="row" style="margin-top:.5rem">
+          <button class="primary" id="bNext">Next step</button>
+          <button id="bApply">Apply a gradient step (lr 0.1)</button>
+        </div>
+        <div class="msg" id="bApplyMsg" hidden></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Your verdict</h3>
+        <p class="formula">To make the loss smaller, should each weight go up, go down, or does it not matter?</p>
+        <div class="wide">
+        <table class="blame" id="blameTable">
+          <thead><tr><th>Weight</th><th>Verdict</th><th>Truth</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+        <div id="bonusBox">
+          <h3 style="margin-top:1rem">Bonus: who deserves the most blame?</h3>
+          <div class="chips" id="mostChips"></div>
+        </div>
+        <div class="row" style="margin-top:.75rem">
+          <button class="primary" id="bCheck">Check my blame</button>
+          <button id="bNew">New example</button>
+        </div>
+        <div class="msg" id="bMsg"></div>
+        <div id="bScore"></div>
+      </div>
+      <div class="panel">
+        <h3>Cheat sheet</h3>
+        <div id="cheat" class="formula"></div>
+        <p class="formula" style="margin-top:.5rem">Positive gradient → weight should go <b>down</b>. Negative → <b>up</b>. Zero → it had no influence (a dead ReLU blocks all blame upstream).</p>
+        <details><summary>Teacher</summary>
+          <p style="margin-top:.5rem"><button id="bUnlockAll">Unlock all levels</button></p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ================= NEURON ================= -->
+<section class="view" id="view-neuron">
+  <p class="intro">Before anything learns, it computes. Here is a 2 → 2 → 1 network with its weights filled in. <b>You</b> are the computer: work out every value by hand, type it in, and see the network light up.</p>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <svg class="net" id="nSvg" viewBox="0 0 640 300" aria-label="Network diagram"></svg>
+      </div>
+      <div class="panel">
+        <h3>Compute each value</h3>
+        <div id="nEqs"></div>
+        <div class="row" style="margin-top:.5rem">
+          <button class="primary" id="nCheck">Check</button>
+          <button id="nShow">Show me</button>
+          <button id="nNew">New network</button>
+        </div>
+        <div class="msg" id="nMsg">Round to two decimals. Partial credit counts: check as often as you like.</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Activation</h3>
+        <div class="chips" id="nAct">
+          <button data-act="relu" aria-pressed="true">ReLU</button>
+          <button data-act="sigmoid" aria-pressed="false">Sigmoid</button>
+        </div>
+        <p class="formula" style="margin-top:.5rem">ReLU(z) = max(0, z)<br>sigmoid(z) = 1 / (1 + e<sup>−z</sup>)</p>
+        <h3 style="margin-top:1rem">Order of operations</h3>
+        <p class="formula">1. Each hidden neuron: weighted sum of inputs plus bias → z.<br>2. Activation → h.<br>3. Output: weighted sum of h plus bias → y.</p>
+        <details><summary>Classroom prompts</summary>
+          <p>With ReLU, what happens to the output if both z values are negative? Can the network still react to the input?</p>
+          <p>Write the whole thing as two matrix products. Which numbers go where?</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CURVE ================= -->
+<section class="view" id="view-curve">
+  <p class="intro">Match the target curve using three hidden neurons. Each neuron is <b>c · act(a·x + b)</b>; the output adds them up. Try it with a linear activation first and see how far you get, then switch.</p>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <canvas id="cCanvas" width="900" height="400" aria-label="Target and fitted curve"></canvas>
+        <div class="stat" style="grid-template-columns: repeat(2, 1fr)">
+          <div><small>Match</small><b id="cScore">–</b></div>
+          <div><small>Mean squared error</small><b id="cMse">–</b></div>
+        </div>
+        <div class="msg" id="cMsg">Drag the sliders. Faint lines show what each neuron contributes on its own.</div>
+      </div>
+      <div class="panel">
+        <h3>Neurons</h3>
+        <div id="cSliders"></div>
+        <div class="row" style="margin-top:.5rem">
+          <button id="cAuto">Let the computer try</button>
+          <button id="cReset">Reset sliders</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Target</h3>
+        <div class="chips" id="cTarget">
+          <button data-t="step" aria-pressed="true">Step</button>
+          <button data-t="bump" aria-pressed="false">Bump</button>
+          <button data-t="vee" aria-pressed="false">V shape</button>
+          <button data-t="wave" aria-pressed="false">Wave</button>
+        </div>
+        <h3 style="margin-top:1rem">Activation</h3>
+        <div class="chips" id="cAct">
+          <button data-act="linear" aria-pressed="true">Linear</button>
+          <button data-act="relu" aria-pressed="false">ReLU</button>
+          <button data-act="sigmoid" aria-pressed="false">Sigmoid</button>
+          <button data-act="tanh" aria-pressed="false">tanh</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>What to notice</h3>
+        <p>With a linear activation, adding straight lines gives a straight line, no matter how many neurons you have. ReLU gives kinks, so three neurons buy you up to three bends. Sigmoid and tanh give smooth steps; a bump is one step up minus one step down.</p>
+        <details><summary>Classroom prompts</summary>
+          <p>Build the bump with exactly two sigmoid neurons. What does the third one have to do?</p>
+          <p>Which target is impossible with three ReLU neurons? Why?</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DOTS ================= -->
+<section class="view" id="view-dots">
+  <p class="intro">Two kinds of dots. Choose how many hidden neurons the network gets, then train it and watch the decision boundary carve the plane. Some shapes need more neurons than others, and one of them needs at least one.</p>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <canvas id="dCanvas" width="600" height="600" aria-label="Dataset and decision boundary"></canvas>
+        <div class="stat" style="grid-template-columns: repeat(3, 1fr)">
+          <div><small>Epochs</small><b id="dEpoch">0</b></div>
+          <div><small>Accuracy</small><b id="dAcc">–</b></div>
+          <div><small>Loss</small><b id="dLoss">–</b></div>
+        </div>
+        <div class="msg" id="dMsg">Pick a dataset and a network size, then train.</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Dataset</h3>
+        <div class="chips" id="dData">
+          <button data-d="blobs" aria-pressed="true">Two blobs</button>
+          <button data-d="xor" aria-pressed="false">XOR</button>
+          <button data-d="circle" aria-pressed="false">Circle</button>
+          <button data-d="moons" aria-pressed="false">Moons</button>
+          <button data-d="spiral" aria-pressed="false">Spiral</button>
+        </div>
+        <h3 style="margin-top:1rem">Hidden neurons</h3>
+        <div class="chips" id="dHid">
+          <button data-h="0" aria-pressed="false">0</button>
+          <button data-h="1" aria-pressed="false">1</button>
+          <button data-h="2" aria-pressed="true">2</button>
+          <button data-h="3" aria-pressed="false">3</button>
+          <button data-h="4" aria-pressed="false">4</button>
+          <button data-h="8" aria-pressed="false">8</button>
+          <button data-h="16" aria-pressed="false">16</button>
+        </div>
+        <h3 style="margin-top:1rem">Activation</h3>
+        <div class="chips" id="dAct">
+          <button data-act="relu" aria-pressed="true">ReLU</button>
+          <button data-act="tanh" aria-pressed="false">tanh</button>
+        </div>
+        <div class="row" style="margin-top:1rem">
+          <button class="primary" id="dTrain">Train</button>
+          <button id="dReset">Reset weights</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>What to notice</h3>
+        <p>Zero hidden neurons is a single straight line. Each ReLU neuron adds one fold; XOR needs two, the circle needs about three, the spiral wants many. If training stalls, reset: a bad start can leave a ReLU dead forever.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= OVERFIT ================= -->
+<section class="view" id="view-overfit">
+  <p class="intro">Twenty noisy measurements of an unknown curve. Train a network to fit them, then <b>commit</b>. Only then do you see the forty points you were never shown. The score is how well you did on those.</p>
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <canvas id="oCanvas" width="900" height="420" aria-label="Training points and fitted curve"></canvas>
+        <div class="stat" style="grid-template-columns: repeat(3, 1fr)">
+          <div><small>Epochs</small><b id="oEpoch">0</b></div>
+          <div><small>Training error</small><b id="oTrain">–</b></div>
+          <div><small>Hidden-set error</small><b id="oTest">?</b></div>
+        </div>
+        <div class="msg" id="oMsg">Train as much as you like. Commit when you think the fit will hold up on new data.</div>
+      </div>
+      <div class="panel" id="oChartPanel" hidden>
+        <h3>Error over training</h3>
+        <canvas id="oChart" width="900" height="260" aria-label="Training and hidden-set error over epochs"></canvas>
+        <p class="formula">Orange is what you could see. Teal is what you were being scored on.</p>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Hidden neurons</h3>
+        <div class="chips" id="oHid">
+          <button data-h="1" aria-pressed="false">1</button>
+          <button data-h="2" aria-pressed="false">2</button>
+          <button data-h="4" aria-pressed="true">4</button>
+          <button data-h="8" aria-pressed="false">8</button>
+          <button data-h="16" aria-pressed="false">16</button>
+          <button data-h="32" aria-pressed="false">32</button>
+          <button data-h="64" aria-pressed="false">64</button>
+        </div>
+        <div class="row" style="margin-top:1rem">
+          <button class="primary" id="oTrainBtn">Train 300 epochs</button>
+          <button id="oCommit">Commit</button>
+        </div>
+        <div class="row" style="margin-top:.5rem">
+          <button id="oNew">New dataset</button>
+        </div>
+        <div id="oScore"></div>
+      </div>
+      <div class="panel">
+        <h3>What to notice</h3>
+        <p>Training error only ever goes down. The hidden-set error goes down, then at some point turns around: the network stops learning the curve and starts memorizing the noise. Winning means stopping before that, or using a network too small to memorize.</p>
+        <details><summary>Classroom prompts</summary>
+          <p>With 64 neurons, keep training until training error is near zero. Then commit. What happened?</p>
+          <p>Find the smallest network that still gets a good hidden-set score.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/* ---------- routing ---------- */
+const VIEWS = ['neuron', 'curve', 'hiker', 'blame', 'dots', 'overfit'];
+function route() {
+  const h = (location.hash || '#neuron').slice(1);
+  const v = VIEWS.includes(h) ? h : 'neuron';
+  VIEWS.forEach(n => {
+    document.getElementById('view-' + n).classList.toggle('active', n === v);
+    const a = document.getElementById('tab-' + n);
+    if (n === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  if (v === 'hiker') hikeDraw();
+  if (v === 'curve') curveDraw();
+  if (v === 'dots') dotsDraw();
+  if (v === 'overfit') { overfitDraw(); if (O.committed) overfitChart(); }
+}
+window.addEventListener('hashchange', route);
+
+const fmt = (x, d = 2) => (Math.abs(x) < 1e-12 ? 0 : x).toFixed(d);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* =====================================================
+   GAME 1: BLINDFOLDED HIKER
+   ===================================================== */
+const sig = x => 1 / (1 + Math.exp(-x));
+const LANDS = {
+  bowl:    { name: 'Gentle bowl',   f: w => 0.5 * (w - 1.5) ** 2 + 0.2 },
+  valleys: { name: 'Two valleys',   f: w => 0.05 * w ** 4 - 0.6 * w ** 2 + 0.4 * w + 3 },
+  canyon:  { name: 'Narrow canyon', f: w => 3 * (w + 1) ** 2 + 0.5 },
+  plateau: { name: 'Plateau',       f: w => 1.2 * sig(-2 * (w + 1.5)) + 0.25 * (w - 2.5) ** 2 * sig(2 * (w - 0.5)) + 0.3 },
+};
+const W_MIN = -5, W_MAX = 5, MAX_STEPS = 20;
+const H = { land: 'bowl', w: 0, steps: 0, trail: [], revealed: false, over: false, lr: 0.2, yMin: 0, yMax: 1, gmin: 0 };
+const dF = (f, w) => (f(w + 1e-4) - f(w - 1e-4)) / 2e-4;
+
+function hikeNew() {
+  const L = LANDS[H.land];
+  let best = Infinity, lo = Infinity, hi = -Infinity, gw = 0;
+  for (let w = W_MIN; w <= W_MAX; w += 0.01) {
+    const v = L.f(w); if (v < best) { best = v; gw = w; } lo = Math.min(lo, v); hi = Math.max(hi, v);
+  }
+  H.gmin = gw; H.yMin = lo - 0.2; H.yMax = Math.min(hi, lo + 6) + 0.3;
+  // start somewhere not already at the minimum
+  do { H.w = +(W_MIN + 1 + Math.random() * (W_MAX - W_MIN - 2)).toFixed(2); } while (Math.abs(H.w - gw) < 1.2);
+  H.steps = 0; H.trail = [{ w: H.w, l: L.f(H.w) }]; H.revealed = false; H.over = false;
+  document.getElementById('hLog').innerHTML = '<li class="head"><span>#</span><span>w</span><span>slope</span><span>loss</span></li>';
+  hikeLogRow(0);
+  setMsg('hMsg', 'Pick a learning rate, then step downhill. You only see the slope under your feet.', '');
+  document.getElementById('hStepBtn').disabled = false;
+  hikeDraw();
+}
+function setMsg(id, text, cls) { const m = document.getElementById(id); m.textContent = text; m.className = 'msg ' + (cls || ''); m.hidden = false; }
+function hikeLogRow(n) {
+  const f = LANDS[H.land].f;
+  const li = document.createElement('li');
+  li.innerHTML = `<span>${n}</span><span>${fmt(H.w)}</span><span>${fmt(dF(f, H.w))}</span><span>${fmt(f(H.w), 3)}</span>`;
+  const log = document.getElementById('hLog'); log.appendChild(li); log.scrollTop = log.scrollHeight;
+}
+function hikeStep() {
+  if (H.over) return;
+  const f = LANDS[H.land].f;
+  const slopeBefore = dF(f, H.w), lossBefore = f(H.w), wBefore = H.w;
+  H.w = H.w - H.lr * slopeBefore;
+  H.steps++;
+  if (H.w < W_MIN || H.w > W_MAX) {
+    H.trail.push({ w: Math.max(W_MIN, Math.min(W_MAX, H.w)), l: f(Math.max(W_MIN, Math.min(W_MAX, H.w))) });
+    hikeEnd('You stepped clean off the map. The learning rate was too large for this slope and the update diverged.', 'bad');
+    return;
+  }
+  H.trail.push({ w: H.w, l: f(H.w) });
+  hikeLogRow(H.steps);
+  const slopeAfter = dF(f, H.w), lossAfter = f(H.w);
+  let note = '', cls = '';
+  if (Math.sign(slopeAfter) !== Math.sign(slopeBefore) && Math.abs(slopeAfter) > 1e-3) {
+    note = lossAfter > lossBefore
+      ? 'You jumped over the valley and landed higher than you started. The slope flipped sign — that is overshooting.'
+      : 'You crossed the bottom of the valley; the slope flipped sign. Smaller steps now will settle you in.';
+    cls = lossAfter > lossBefore ? 'bad' : '';
+  } else if (Math.abs(slopeAfter) < 0.03) {
+    note = Math.abs(lossAfter - f(H.gmin)) < 0.05
+      ? 'Slope is nearly flat and the loss is low. Looks like you are at the bottom.'
+      : 'Slope is nearly flat here, so steps barely move you. Flat does not always mean lowest.';
+    cls = Math.abs(lossAfter - f(H.gmin)) < 0.05 ? 'good' : '';
+  } else {
+    note = `Moved ${fmt(H.w - wBefore)} along w. Loss went from ${fmt(lossBefore, 3)} to ${fmt(lossAfter, 3)}.`;
+  }
+  setMsg('hMsg', note, cls);
+  if (H.steps >= MAX_STEPS) hikeEnd(null);
+  hikeDraw();
+}
+function hikeEnd(reason, cls) {
+  H.over = true; H.revealed = true;
+  const f = LANDS[H.land].f;
+  const gap = f(Math.max(W_MIN, Math.min(W_MAX, H.w))) - f(H.gmin);
+  let stars = gap < 0.05 ? '★★★' : gap < 0.5 ? '★★☆' : '★☆☆';
+  if (reason) stars = '☆☆☆';
+  const summary = reason || (gap < 0.05
+    ? `Out of steps — and you found the lowest point. Final loss gap ${fmt(gap, 3)}.`
+    : gap < 0.5
+      ? `Out of steps. Close, but not at the bottom: loss gap ${fmt(gap, 3)}. The fog is lifted — see where you were heading.`
+      : `Out of steps. Loss gap ${fmt(gap, 3)}. The fog is lifted — compare your trail with the true valley.`);
+  setMsg('hMsg', `${stars}  ${summary}`, cls || (gap < 0.05 ? 'good' : ''));
+  document.getElementById('hStepBtn').disabled = true;
+  hikeDraw();
+}
+function hikeDraw() {
+  const c = document.getElementById('hikeCanvas');
+  if (!c.isConnected) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = c.clientWidth || 900, cssH = Math.round(cssW * 0.47);
+  if (c.width !== cssW * dpr || c.height !== cssH * dpr) { c.width = cssW * dpr; c.height = cssH * dpr; c.style.height = cssH + 'px'; }
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const f = LANDS[H.land].f;
+  const pad = { l: 44, r: 16, t: 16, b: 34 };
+  const X = w => pad.l + (w - W_MIN) / (W_MAX - W_MIN) * (cssW - pad.l - pad.r);
+  const Y = l => pad.t + (1 - (Math.min(l, H.yMax) - H.yMin) / (H.yMax - H.yMin)) * (cssH - pad.t - pad.b);
+  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.fillStyle = cssVar('--paper'); ctx.fillRect(0, 0, cssW, cssH);
+  // axes
+  ctx.strokeStyle = cssVar('--line'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, cssH - pad.b); ctx.lineTo(cssW - pad.r, cssH - pad.b); ctx.stroke();
+  ctx.fillStyle = cssVar('--ink-soft'); ctx.font = '12px "Instrument Sans", sans-serif'; ctx.textAlign = 'center';
+  for (let w = W_MIN; w <= W_MAX; w += 1) ctx.fillText(w, X(w), cssH - pad.b + 16);
+  ctx.fillText('w', cssW - pad.r - 6, cssH - 6);
+  ctx.save(); ctx.translate(12, cssH / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('loss', 0, 0); ctx.restore();
+  // full curve (revealed) or fog
+  if (H.revealed) {
+    ctx.strokeStyle = cssVar('--teal'); ctx.lineWidth = 2.5; ctx.beginPath();
+    for (let w = W_MIN; w <= W_MAX; w += 0.02) { const x = X(w), y = Y(f(w)); w === W_MIN ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+    ctx.stroke();
+    ctx.fillStyle = cssVar('--teal'); ctx.beginPath(); ctx.arc(X(H.gmin), Y(f(H.gmin)), 6, 0, Math.PI * 2); ctx.fill();
+    ctx.textAlign = 'center'; ctx.fillText('lowest point', X(H.gmin), Y(f(H.gmin)) + 20);
+  } else {
+    ctx.fillStyle = cssVar('--fog'); ctx.fillRect(pad.l + 1, pad.t, cssW - pad.l - pad.r - 1, cssH - pad.t - pad.b - 1);
+    ctx.fillStyle = cssVar('--ink-soft'); ctx.textAlign = 'left'; ctx.fillText('fog — only the slope under you is known', pad.l + 8, pad.t + 16);
+  }
+  // trail
+  H.trail.forEach((p, i) => {
+    if (i === H.trail.length - 1) return;
+    ctx.fillStyle = cssVar('--marker'); ctx.globalAlpha = 0.25 + 0.5 * (i / H.trail.length);
+    ctx.beginPath(); ctx.arc(X(p.w), Y(p.l), 4, 0, Math.PI * 2); ctx.fill();
+    if (i > 0) { ctx.strokeStyle = cssVar('--marker'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X(H.trail[i - 1].w), Y(H.trail[i - 1].l)); ctx.lineTo(X(p.w), Y(p.l)); ctx.stroke(); }
+  });
+  ctx.globalAlpha = 1;
+  // tangent + hiker
+  const w = Math.max(W_MIN, Math.min(W_MAX, H.w)), l = f(w), s = dF(f, w);
+  const dw = 0.5;
+  ctx.strokeStyle = cssVar('--marker'); ctx.lineWidth = 3; ctx.beginPath();
+  ctx.moveTo(X(w - dw), Y(l - s * dw)); ctx.lineTo(X(w + dw), Y(l + s * dw)); ctx.stroke();
+  ctx.fillStyle = cssVar('--marker'); ctx.beginPath(); ctx.arc(X(w), Y(l), 8, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = cssVar('--card'); ctx.lineWidth = 2; ctx.stroke();
+  // downhill arrow
+  if (Math.abs(s) > 1e-3 && !H.over) {
+    const dir = -Math.sign(s), ax = X(w) + dir * 28, ay = Y(l) - 22;
+    ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(w), ay); ctx.lineTo(ax, ay); ctx.lineTo(ax - dir * 6, ay - 5); ctx.moveTo(ax, ay); ctx.lineTo(ax - dir * 6, ay + 5); ctx.stroke();
+    ctx.fillStyle = cssVar('--ink'); ctx.textAlign = 'center'; ctx.fillText('downhill', X(w) + dir * 14, ay - 8);
+  }
+  document.getElementById('hStep').textContent = `${H.steps} / ${MAX_STEPS}`;
+  document.getElementById('hW').textContent = fmt(H.w);
+  document.getElementById('hLoss').textContent = fmt(l, 3);
+  document.getElementById('hSlope').textContent = fmt(s);
+}
+document.getElementById('hLr').addEventListener('input', e => { H.lr = +e.target.value; document.getElementById('hLrVal').textContent = fmt(H.lr); });
+document.getElementById('hStepBtn').addEventListener('click', hikeStep);
+document.getElementById('hReveal').addEventListener('click', () => { H.revealed = true; setMsg('hMsg', 'Fog lifted. You can keep stepping, but now you know where the valley is.', ''); hikeDraw(); });
+document.getElementById('hNew').addEventListener('click', hikeNew);
+document.getElementById('hLand').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  [...e.currentTarget.children].forEach(x => x.setAttribute('aria-pressed', x === b));
+  H.land = b.dataset.land; hikeNew();
+});
+window.addEventListener('resize', hikeDraw);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', hikeDraw);
+
+/* =====================================================
+   GAME 2: BLAME GAME (three levels)
+   ===================================================== */
+const sub = n => '₀₁₂₃₄₅₆₇₈₉'[n];
+const rnd = (a, b, d = 1) => +(a + Math.random() * (b - a)).toFixed(d);
+const relu = z => Math.max(0, z);
+const LEVELS = [
+  { nIn: 1, nHid: 1, title: 'Level 1 · one chain', bonus: false,
+    intro: 'The smallest possible network: one input, one ReLU neuron, one output. Two knobs, w and v. The network guessed wrong. Decide which knob should go up, which should go down, or whether one of them had no say at all.' },
+  { nIn: 1, nHid: 2, title: 'Level 2 · two paths', bonus: true,
+    intro: 'Now the input reaches the output through two neurons. Blame splits across the two paths, and a dead ReLU on one path blocks everything behind it. Four knobs this time.' },
+  { nIn: 2, nHid: 2, title: 'Level 3 · the full net', bonus: true,
+    intro: 'Two inputs, two ReLU neurons, one output: a real (tiny) MLP. Six knobs. Watch the sign of each input — a negative input flips the verdict for its weight.' },
+];
+const B = { level: 0, unlocked: 0, perfect: [0, 0, 0] };
+
+function buildNet(L) {
+  const n = { x: [], W: [], b: [], v: [], t: rnd(-2, 2), p: {}, keys: [], meta: {} };
+  for (let i = 0; i < L.nIn; i++) n.x.push(rnd(-2, 2) || 0.5);
+  for (let j = 0; j < L.nHid; j++) {
+    n.W.push([]); n.b.push(rnd(-0.5, 0.5)); n.v.push(rnd(-1.5, 1.5) || 0.7);
+    for (let i = 0; i < L.nIn; i++) n.W[j].push(rnd(-1.5, 1.5) || -0.6);
+  }
+  for (let j = 0; j < L.nHid; j++) for (let i = 0; i < L.nIn; i++) {
+    const k = `W${i}${j}`;
+    const lbl = L.nIn === 1 ? (L.nHid === 1 ? 'w' : 'w' + sub(j + 1)) : 'w' + sub(i + 1) + sub(j + 1);
+    n.keys.push(k); n.meta[k] = { kind: 'W', i, j, lbl, long: `${lbl} (${xName(L, i)}→${hName(L, j)})` }; n.p[k] = n.W[j][i];
+  }
+  for (let j = 0; j < L.nHid; j++) {
+    const k = `V${j}`, lbl = L.nHid === 1 ? 'v' : 'v' + sub(j + 1);
+    n.keys.push(k); n.meta[k] = { kind: 'V', j, lbl, long: `${lbl} (${hName(L, j)}→y)` }; n.p[k] = n.v[j];
+  }
+  return n;
+}
+const xName = (L, i) => L.nIn === 1 ? 'x' : 'x' + sub(i + 1);
+const hName = (L, j) => L.nHid === 1 ? 'h' : 'h' + sub(j + 1);
+const zName = (L, j) => L.nHid === 1 ? 'z' : 'z' + sub(j + 1);
+
+function forward(n) {
+  const z = n.b.map((b, j) => b + n.W[j].reduce((s, w, i) => s + w * n.x[i], 0));
+  const h = z.map(relu);
+  const y = h.reduce((s, hj, j) => s + n.v[j] * hj, 0);
+  return { z, h, y, loss: 0.5 * (y - n.t) ** 2 };
+}
+function backward(n, F) {
+  const d = F.y - n.t;
+  const dh = F.z.map((zj, j) => d * n.v[j] * (zj > 0 ? 1 : 0));
+  const g = {};
+  n.keys.forEach(k => { const m = n.meta[k]; g[k] = m.kind === 'V' ? d * F.h[m.j] : dh[m.j] * n.x[m.i]; });
+  return { d, dh, g };
+}
+function blameNew() {
+  const L = LEVELS[B.level];
+  let n, F;
+  for (let tries = 0; tries < 80; tries++) {
+    n = buildNet(L); F = forward(n);
+    const anyAlive = F.z.some(z => z > 0);
+    if (Math.abs(F.y - n.t) > 0.3 && anyAlive) break;
+  }
+  Object.assign(B, { n, F, G: backward(n, F), verdict: {}, most: null, checked: false, bstep: 0 });
+  document.getElementById('bwdPanel').hidden = true;
+  document.getElementById('bApplyMsg').hidden = true;
+  document.getElementById('bScore').innerHTML = '';
+  document.getElementById('bNext').disabled = false;
+  document.getElementById('bonusBox').hidden = !L.bonus;
+  document.getElementById('bIntro').textContent = L.intro;
+  setMsg('bMsg', `Fill in all ${n.keys.length} verdicts, then check.`, '');
+  renderLevels(); renderCheat(); renderNet(); renderForward(); renderTable();
+}
+function renderLevels() {
+  const c = document.getElementById('bLevels'); c.innerHTML = '';
+  LEVELS.forEach((L, idx) => {
+    const b = document.createElement('button');
+    const locked = idx > B.unlocked;
+    b.textContent = (locked ? '🔒 ' : '') + L.title + (B.perfect[idx] ? ` ✓${B.perfect[idx]}` : '');
+    b.disabled = locked; b.dataset.level = idx; b.setAttribute('aria-pressed', idx === B.level);
+    c.appendChild(b);
+  });
+}
+function renderCheat() {
+  const L = LEVELS[B.level];
+  const j = L.nHid === 1 ? '' : '<sub>j</sub>', i = L.nIn === 1 ? '' : '<sub>i</sub>';
+  document.getElementById('cheat').innerHTML = `Loss: L = ½ (y − t)²<br>
+    Output blame: δ = y − t<br>
+    ∂L/∂v${j} = δ · h${j}<br>
+    Hidden blame: δ${j || '<sub>h</sub>'} = δ · v${j} · [z${j} &gt; 0]<br>
+    ∂L/∂w${i}${j} = δ${j || '<sub>h</sub>'} · x${i}`;
+}
+function verdictOf(g) { return Math.abs(g) < 1e-9 ? 'none' : g > 0 ? 'down' : 'up'; }
+function renderTable() {
+  const n = B.n, tb = document.querySelector('#blameTable tbody'); tb.innerHTML = '';
+  n.keys.forEach(k => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${n.meta[k].long}<br><span class="formula">= ${fmt(n.p[k], 1)}</span></td>
+      <td><span class="tri" data-key="${k}">
+        <button data-v="up" aria-pressed="false">Up</button>
+        <button data-v="down" aria-pressed="false">Down</button>
+        <button data-v="none" aria-pressed="false">No effect</button></span></td>
+      <td class="result" id="res-${k}"></td>`;
+    tb.appendChild(tr);
+  });
+  const chips = document.getElementById('mostChips'); chips.innerHTML = '';
+  n.keys.forEach(k => { const b = document.createElement('button'); b.textContent = n.meta[k].lbl; b.dataset.key = k; b.setAttribute('aria-pressed', 'false'); chips.appendChild(b); });
+}
+document.getElementById('blameTable').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || B.checked) return;
+  const tri = b.parentElement; [...tri.children].forEach(x => x.setAttribute('aria-pressed', x === b));
+  B.verdict[tri.dataset.key] = b.dataset.v;
+});
+document.getElementById('mostChips').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || B.checked) return;
+  [...e.currentTarget.children].forEach(x => x.setAttribute('aria-pressed', x === b));
+  B.most = b.dataset.key;
+});
+document.getElementById('bLevels').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  B.level = +b.dataset.level; blameNew();
+});
+document.getElementById('bUnlockAll').addEventListener('click', () => { B.unlocked = LEVELS.length - 1; renderLevels(); });
+
+function renderForward() {
+  const L = LEVELS[B.level], n = B.n, F = B.F;
+  const xs = n.x.map((x, i) => `${xName(L, i)} = ${fmt(x, 1)}`).join(', ');
+  let html = `<div class="eq">Input${L.nIn > 1 ? 's' : ''}: ${xs} &nbsp;·&nbsp; target t = ${fmt(n.t, 1)}</div>`;
+  F.z.forEach((z, j) => {
+    const terms = n.W[j].map((w, i) => `${n.meta[`W${i}${j}`].lbl}·${xName(L, i)}`).join(' + ');
+    html += `<div class="eq">${zName(L, j)} = ${terms} + b${L.nHid > 1 ? sub(j + 1) : ''} = ${fmt(z)} → ${hName(L, j)} = ReLU(${zName(L, j)}) = <b>${fmt(F.h[j])}</b>${z <= 0 ? ' (dead: ReLU output is 0)' : ''}</div>`;
+  });
+  const yterms = n.v.map((v, j) => `${n.meta[`V${j}`].lbl}·${hName(L, j)}`).join(' + ');
+  html += `<div class="eq">y = ${yterms} = <b>${fmt(F.y)}</b> &nbsp;·&nbsp; Loss = ½(y − t)² = <b>${fmt(F.loss, 3)}</b></div>`;
+  document.getElementById('fwd').innerHTML = html;
+}
+function renderNet(hot = {}) {
+  const L = LEVELS[B.level], n = B.n, F = B.F;
+  const ys = c => c === 1 ? [150] : [85, 215];
+  const P = {};
+  ys(L.nIn).forEach((y, i) => P['x' + i] = [70, y]);
+  ys(L.nHid).forEach((y, j) => P['h' + j] = [320, y]);
+  P.y = [570, 150];
+  let s = '';
+  n.keys.forEach(k => {
+    const m = n.meta[k];
+    const [x1, y1] = m.kind === 'W' ? P['x' + m.i] : P['h' + m.j];
+    const [x2, y2] = m.kind === 'W' ? P['h' + m.j] : P.y;
+    const dead = m.kind === 'W' && F.z[m.j] <= 0;
+    s += `<line class="edge ${hot[k] ? 'hot' : ''} ${dead ? 'dead' : ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>
+      <text class="wlbl" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}" text-anchor="middle">${m.lbl} = ${fmt(n.p[k], 1)}</text>`;
+  });
+  const node = (k, label, val, dead) => `<circle class="node ${hot[k] ? 'hot' : ''} ${dead ? 'dead' : ''}" cx="${P[k][0]}" cy="${P[k][1]}" r="26"/>
+    <text class="lbl" x="${P[k][0]}" y="${P[k][1] - 3}" text-anchor="middle">${label}</text>
+    <text class="val" x="${P[k][0]}" y="${P[k][1] + 14}" text-anchor="middle">${val}</text>`;
+  n.x.forEach((x, i) => s += node('x' + i, xName(L, i), fmt(x, 1), false));
+  F.h.forEach((h, j) => s += node('h' + j, hName(L, j), fmt(h), F.z[j] <= 0));
+  s += node('y', 'y', fmt(F.y), false);
+  s += `<text class="val" x="570" y="205" text-anchor="middle">target ${fmt(n.t, 1)}</text>
+    <text class="val" x="570" y="222" text-anchor="middle">loss ${fmt(F.loss, 3)}</text>
+    <text class="val" x="320" y="35" text-anchor="middle">ReLU neuron${L.nHid > 1 ? 's' : ''}</text>`;
+  document.getElementById('netSvg').innerHTML = s;
+}
+document.getElementById('bCheck').addEventListener('click', () => {
+  const n = B.n, L = LEVELS[B.level];
+  if (n.keys.some(k => !B.verdict[k])) { setMsg('bMsg', 'Give every weight a verdict first.', 'bad'); return; }
+  B.checked = true;
+  let correct = 0;
+  n.keys.forEach(k => {
+    const truth = verdictOf(B.G.g[k]), ok = truth === B.verdict[k];
+    if (ok) correct++;
+    const td = document.getElementById('res-' + k);
+    td.textContent = `${ok ? '✓' : '✗'} ${truth === 'none' ? 'no effect' : truth} (∂L/∂w = ${fmt(B.G.g[k])})`;
+    td.className = 'result ' + (ok ? 'ok' : 'no');
+  });
+  const total = n.keys.length, perfect = correct === total;
+  let bonusLine = '';
+  if (L.bonus) {
+    const mostKey = n.keys.reduce((a, k) => Math.abs(B.G.g[k]) > Math.abs(B.G.g[a]) ? k : a, n.keys[0]);
+    bonusLine = `<p>${B.most === mostKey ? 'Bonus ✓ — ' : B.most ? 'Bonus ✗ — ' : ''}${n.meta[mostKey].lbl} carries the most blame (|∂L/∂w| = ${fmt(Math.abs(B.G.g[mostKey]))}).</p>`;
+  }
+  document.getElementById('bScore').innerHTML = `<div class="score">${correct} / ${total}</div>${bonusLine}`;
+  let msg = perfect ? 'Perfect verdict. Now watch how backprop computes it.' : 'Compare your verdicts with the truth, then step through the backward pass to see why.';
+  if (perfect) {
+    B.perfect[B.level]++;
+    if (B.level === B.unlocked && B.level < LEVELS.length - 1) { B.unlocked++; msg += ` ${LEVELS[B.unlocked].title} unlocked.`; }
+    renderLevels();
+  }
+  setMsg('bMsg', msg, perfect ? 'good' : '');
+  B.bstep = 0; document.getElementById('bwdPanel').hidden = false; document.getElementById('bwd').innerHTML = ''; bwdStep();
+  document.getElementById('bwdPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+function bwdStep() {
+  const L = LEVELS[B.level], n = B.n, F = B.F, G = B.G, out = document.getElementById('bwd');
+  [...out.children].forEach(c => c.classList.remove('hot'));
+  const add = html => { const d = document.createElement('div'); d.className = 'eq hot'; d.innerHTML = html; out.appendChild(d); };
+  const step = B.bstep++;
+  const hot = {};
+  if (step === 0) {
+    add(`<b>1. Blame at the output.</b> δ = y − t = ${fmt(F.y)} − ${fmt(n.t, 1)} = <b>${fmt(G.d)}</b>. ${G.d > 0 ? 'The output was too high, so anything that pushed y up gets blamed.' : 'The output was too low, so anything that pushed y down gets blamed.'}`);
+    hot.y = 1;
+  } else if (step === 1) {
+    const lines = n.v.map((v, j) => { const k = `V${j}`, lbl = n.meta[k].lbl; hot[k] = 1;
+      return `∂L/∂${lbl} = ${fmt(G.d)} × ${fmt(F.h[j])} = <b>${fmt(G.g[k])}</b>${F.h[j] === 0 ? ` — ${hName(L, j)} was 0, so ${lbl} could not have mattered.` : ''}`; });
+    add(`<b>2. Output weight${L.nHid > 1 ? 's' : ''}.</b> ${L.nHid > 1 ? 'Each v<sub>j</sub> contributed v<sub>j</sub>·h<sub>j</sub> to y, so its blame is δ·h<sub>j</sub>.' : 'v contributed v·h to y, so its blame is δ·h.'}<br>${lines.join('<br>')}`);
+    hot.y = 1;
+  } else if (step === 2) {
+    const lines = F.z.map((z, j) => { hot['h' + j] = z > 0; hot[`V${j}`] = 1;
+      const dn = L.nHid > 1 ? 'δ' + sub(j + 1) : 'δ<sub>h</sub>';
+      return `${dn} = ${fmt(G.d)} × ${fmt(n.v[j], 1)} × ${z > 0 ? 1 : 0} = <b>${fmt(G.dh[j])}</b>${z <= 0 ? ' — dead neuron: the gate closes and no blame gets through.' : ''}`; });
+    add(`<b>3. Pass blame back to the hidden neuron${L.nHid > 1 ? 's' : ''}.</b> Multiply by the output weight, then by the ReLU gate: 1 if the neuron was active, 0 if dead.<br>${lines.join('<br>')}`);
+  } else if (step === 3) {
+    const lines = [];
+    n.keys.filter(k => n.meta[k].kind === 'W').forEach(k => { const m = n.meta[k]; hot[k] = G.dh[m.j] !== 0;
+      const dn = L.nHid > 1 ? 'δ' + sub(m.j + 1) : 'δ<sub>h</sub>';
+      lines.push(`∂L/∂${m.lbl} = ${dn} × ${xName(L, m.i)} = ${fmt(G.dh[m.j])} × ${fmt(n.x[m.i], 1)} = <b>${fmt(G.g[k])}</b>`); });
+    add(`<b>4. Input weight${lines.length > 1 ? 's' : ''}.</b> Hidden blame times the input that fed it.<br>${lines.join('<br>')}${L.nIn > 1 ? '<br><span class="formula">A negative input flips the verdict for its weight.</span>' : ''}`);
+    document.getElementById('bNext').disabled = true;
+  }
+  renderNet(hot);
+}
+document.getElementById('bNext').addEventListener('click', bwdStep);
+document.getElementById('bApply').addEventListener('click', () => {
+  const lr = 0.1, n = B.n;
+  const n2 = { ...n, W: n.W.map(r => [...r]), v: [...n.v] };
+  n.keys.forEach(k => { const m = n.meta[k]; if (m.kind === 'W') n2.W[m.j][m.i] -= lr * B.G.g[k]; else n2.v[m.j] -= lr * B.G.g[k]; });
+  const F2 = forward(n2);
+  setMsg('bApplyMsg', `After w ← w − 0.1·∂L/∂w: y goes from ${fmt(B.F.y)} to ${fmt(F2.y)}, loss from ${fmt(B.F.loss, 3)} to ${fmt(F2.loss, 3)}. ${F2.loss < B.F.loss ? 'Every weight moved against its blame, and the loss dropped.' : 'The step was too big for this example and overshot — same lesson as the hiker.'}`, F2.loss < B.F.loss ? 'good' : 'bad');
+});
+document.getElementById('bNew').addEventListener('click', blameNew);
+
+/* =====================================================
+   SHARED: tiny MLP with Adam
+   ===================================================== */
+const ACT = {
+  linear:  { f: z => z, d: z => 1 },
+  relu:    { f: z => Math.max(0, z), d: z => z > 0 ? 1 : 0 },
+  sigmoid: { f: z => 1 / (1 + Math.exp(-z)), d: z => { const s = 1 / (1 + Math.exp(-z)); return s * (1 - s); } },
+  tanh:    { f: z => Math.tanh(z), d: z => 1 - Math.tanh(z) ** 2 },
+};
+const randn = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+class Net {
+  constructor(nIn, nHid, act, outSigmoid) {
+    this.nIn = nIn; this.nHid = nHid; this.act = act; this.outSigmoid = outSigmoid;
+    const nf = nHid || nIn;
+    this.p = { W1: new Float64Array(nHid * nIn), b1: new Float64Array(nHid), W2: new Float64Array(nf), b2: new Float64Array(1) };
+    for (let i = 0; i < this.p.W1.length; i++) this.p.W1[i] = randn() * Math.sqrt(2 / nIn);
+    for (let i = 0; i < nf; i++) this.p.W2[i] = randn() * Math.sqrt(1 / nf);
+    this.m = {}; this.v = {}; this.t = 0;
+    for (const k in this.p) { this.m[k] = new Float64Array(this.p[k].length); this.v[k] = new Float64Array(this.p[k].length); }
+  }
+  forward(x) {
+    const { W1, b1, W2, b2 } = this.p, A = ACT[this.act];
+    let z, h;
+    if (this.nHid) {
+      z = new Float64Array(this.nHid); h = new Float64Array(this.nHid);
+      for (let j = 0; j < this.nHid; j++) { let s = b1[j]; for (let i = 0; i < this.nIn; i++) s += W1[j * this.nIn + i] * x[i]; z[j] = s; h[j] = A.f(s); }
+    } else { z = null; h = x; }
+    let y = b2[0]; for (let j = 0; j < h.length; j++) y += W2[j] * h[j];
+    const out = this.outSigmoid ? 1 / (1 + Math.exp(-y)) : y;
+    return { z, h, y, out };
+  }
+  train(X, Y, lr, epochs = 1) {
+    const { W1, b1, W2, b2 } = this.p, A = ACT[this.act];
+    const g = { W1: new Float64Array(W1.length), b1: new Float64Array(b1.length), W2: new Float64Array(W2.length), b2: new Float64Array(1) };
+    let loss = 0;
+    for (let e = 0; e < epochs; e++) {
+      for (const k in g) g[k].fill(0);
+      loss = 0;
+      for (let n = 0; n < X.length; n++) {
+        const x = X[n], F = this.forward(x), d = F.out - Y[n];
+        loss += this.outSigmoid ? -(Y[n] * Math.log(F.out + 1e-9) + (1 - Y[n]) * Math.log(1 - F.out + 1e-9)) : 0.5 * d * d;
+        g.b2[0] += d;
+        for (let j = 0; j < F.h.length; j++) g.W2[j] += d * F.h[j];
+        if (this.nHid) for (let j = 0; j < this.nHid; j++) {
+          const dj = d * W2[j] * A.d(F.z[j]);
+          g.b1[j] += dj; for (let i = 0; i < this.nIn; i++) g.W1[j * this.nIn + i] += dj * x[i];
+        }
+      }
+      this.t++;
+      const b1a = 0.9, b2a = 0.999, N = X.length;
+      for (const k in g) for (let i = 0; i < g[k].length; i++) {
+        const gi = g[k][i] / N;
+        this.m[k][i] = b1a * this.m[k][i] + (1 - b1a) * gi;
+        this.v[k][i] = b2a * this.v[k][i] + (1 - b2a) * gi * gi;
+        const mh = this.m[k][i] / (1 - b1a ** this.t), vh = this.v[k][i] / (1 - b2a ** this.t);
+        this.p[k][i] -= lr * mh / (Math.sqrt(vh) + 1e-8);
+      }
+    }
+    return loss / X.length;
+  }
+  loss(X, Y) { let s = 0; for (let n = 0; n < X.length; n++) { const d = this.forward(X[n]).out - Y[n]; s += 0.5 * d * d; } return s / X.length; }
+}
+function canvas2d(id, ratio) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1, W = c.clientWidth || 600, Hh = Math.round(W * ratio);
+  if (c.width !== W * dpr || c.height !== Hh * dpr) { c.width = W * dpr; c.height = Hh * dpr; c.style.height = Hh + 'px'; }
+  const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, Hh); ctx.fillStyle = cssVar('--paper'); ctx.fillRect(0, 0, W, Hh);
+  return { ctx, W, H: Hh };
+}
+function pressChips(container, btn) { [...container.children].forEach(x => x.setAttribute('aria-pressed', x === btn)); }
+
+/* =====================================================
+   GAME 3: BE THE NEURON
+   ===================================================== */
+const N = { act: 'relu' };
+function neuronNew() {
+  const r = () => rnd(-1.5, 1.5) || 0.5;
+  N.x = [rnd(-2, 2) || 1, rnd(-2, 2) || -1];
+  N.W = [[r(), r()], [r(), r()]]; N.b = [rnd(-1, 1), rnd(-1, 1)]; N.v = [r(), r()]; N.c = rnd(-1, 1);
+  const A = ACT[N.act];
+  N.z = N.b.map((b, j) => b + N.W[j][0] * N.x[0] + N.W[j][1] * N.x[1]);
+  N.h = N.z.map(A.f);
+  N.y = N.c + N.v[0] * N.h[0] + N.v[1] * N.h[1];
+  N.truth = { z1: N.z[0], z2: N.z[1], h1: N.h[0], h2: N.h[1], y: N.y };
+  const an = N.act === 'relu' ? 'ReLU' : 'sigmoid';
+  const inp = id => `<input type="number" step="0.01" id="in-${id}" aria-label="${id}" style="width:6.5em;font:inherit;padding:.25rem .4rem;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)">`;
+  document.getElementById('nEqs').innerHTML = `
+    <div class="eq">z₁ = w₁₁·x₁ + w₂₁·x₂ + b₁ = (${fmt(N.W[0][0], 1)})(${fmt(N.x[0], 1)}) + (${fmt(N.W[0][1], 1)})(${fmt(N.x[1], 1)}) + (${fmt(N.b[0], 1)}) = ${inp('z1')} <span id="ok-z1"></span></div>
+    <div class="eq">h₁ = ${an}(z₁) = ${inp('h1')} <span id="ok-h1"></span></div>
+    <div class="eq">z₂ = w₁₂·x₁ + w₂₂·x₂ + b₂ = (${fmt(N.W[1][0], 1)})(${fmt(N.x[0], 1)}) + (${fmt(N.W[1][1], 1)})(${fmt(N.x[1], 1)}) + (${fmt(N.b[1], 1)}) = ${inp('z2')} <span id="ok-z2"></span></div>
+    <div class="eq">h₂ = ${an}(z₂) = ${inp('h2')} <span id="ok-h2"></span></div>
+    <div class="eq">y = v₁·h₁ + v₂·h₂ + c = (${fmt(N.v[0], 1)})·h₁ + (${fmt(N.v[1], 1)})·h₂ + (${fmt(N.c, 1)}) = ${inp('y')} <span id="ok-y"></span></div>`;
+  setMsg('nMsg', 'Round to two decimals. Partial credit counts: check as often as you like.', '');
+  neuronNet({});
+}
+function neuronNet(show) {
+  const P = { x0: [70, 90], x1: [70, 210], h0: [320, 80], h1: [320, 220], y: [570, 150] };
+  const val = (k, v) => show[k] ? fmt(v) : '?';
+  const edge = (a, b, lbl, w) => { const [x1, y1] = P[a], [x2, y2] = P[b];
+    return `<line class="edge" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><text class="wlbl" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}" text-anchor="middle">${lbl} = ${fmt(w, 1)}</text>`; };
+  const node = (k, lbl, v, ok) => `<circle class="node ${ok ? 'hot' : ''}" cx="${P[k][0]}" cy="${P[k][1]}" r="26"/><text class="lbl" x="${P[k][0]}" y="${P[k][1] - 3}" text-anchor="middle">${lbl}</text><text class="val" x="${P[k][0]}" y="${P[k][1] + 14}" text-anchor="middle">${v}</text>`;
+  document.getElementById('nSvg').innerHTML =
+    edge('x0', 'h0', 'w₁₁', N.W[0][0]) + edge('x1', 'h0', 'w₂₁', N.W[0][1]) + edge('x0', 'h1', 'w₁₂', N.W[1][0]) + edge('x1', 'h1', 'w₂₂', N.W[1][1]) +
+    edge('h0', 'y', 'v₁', N.v[0]) + edge('h1', 'y', 'v₂', N.v[1]) +
+    node('x0', 'x₁', fmt(N.x[0], 1)) + node('x1', 'x₂', fmt(N.x[1], 1)) +
+    node('h0', 'h₁', val('h1', N.h[0]), show.h1) + node('h1', 'h₂', val('h2', N.h[1]), show.h2) + node('y', 'y', val('y', N.y), show.y) +
+    `<text class="val" x="320" y="35" text-anchor="middle">b₁ = ${fmt(N.b[0], 1)}, b₂ = ${fmt(N.b[1], 1)}</text><text class="val" x="570" y="205" text-anchor="middle">c = ${fmt(N.c, 1)}</text>`;
+}
+function neuronCheck(reveal) {
+  let right = 0; const show = {};
+  for (const k in N.truth) {
+    const el = document.getElementById('in-' + k), ok = document.getElementById('ok-' + k);
+    const v = parseFloat(el.value);
+    const good = !isNaN(v) && Math.abs(v - N.truth[k]) < 0.015;
+    if (reveal) { el.value = fmt(N.truth[k]); ok.textContent = good ? '✓' : '→ ' + fmt(N.truth[k]); ok.style.color = cssVar(good ? '--teal' : '--marker'); show[k] = true; }
+    else { ok.textContent = isNaN(v) ? '' : good ? '✓' : '✗'; ok.style.color = cssVar(good ? '--teal' : '--marker'); if (good) show[k] = true; }
+    if (good) right++;
+  }
+  neuronNet(show);
+  if (!reveal) setMsg('nMsg', right === 5 ? 'All five correct. You just did a forward pass.' : `${right} of 5 correct so far.`, right === 5 ? 'good' : '');
+  else setMsg('nMsg', 'Answers filled in. Try a new network when ready.', '');
+}
+document.getElementById('nCheck').addEventListener('click', () => neuronCheck(false));
+document.getElementById('nShow').addEventListener('click', () => neuronCheck(true));
+document.getElementById('nNew').addEventListener('click', neuronNew);
+document.getElementById('nAct').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pressChips(e.currentTarget, b); N.act = b.dataset.act; neuronNew(); });
+
+/* =====================================================
+   GAME 4: SHAPE THE CURVE
+   ===================================================== */
+const TARGETS = {
+  step: x => Math.tanh(4 * x),
+  bump: x => 2 * Math.exp(-x * x) - 0.5,
+  vee:  x => Math.abs(x) - 1.5,
+  wave: x => 1.2 * Math.sin(1.6 * x),
+};
+const C = { target: 'step', act: 'linear', net: null, anim: null };
+const CX = []; for (let x = -3; x <= 3.0001; x += 0.05) CX.push([x]);
+function curveReset() {
+  if (C.anim) { cancelAnimationFrame(C.anim); C.anim = null; }
+  C.net = new Net(1, 3, C.act, false);
+  const p = C.net.p;
+  p.W1.set([1, 1, 1]); p.b1.set([-1, 0, 1]); p.W2.set([0.5, 0.5, 0.5]); p.b2[0] = 0;
+  curveSliders(); curveDraw();
+}
+function curveSliders() {
+  const box = document.getElementById('cSliders'); box.innerHTML = '';
+  const p = C.net.p;
+  const mk = (label, arr, idx, min, max) => {
+    const id = `cs-${label}-${idx}`;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<label for="${id}">${label}<sub>${idx + 1}</sub> = <span id="${id}-v">${fmt(arr[idx])}</span></label><input type="range" id="${id}" min="${min}" max="${max}" step="0.05" value="${arr[idx]}">`;
+    wrap.querySelector('input').addEventListener('input', e => { arr[idx] = +e.target.value; document.getElementById(id + '-v').textContent = fmt(arr[idx]); curveDraw(); });
+    return wrap;
+  };
+  const grid = document.createElement('div'); grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem 1rem';
+  for (let k = 0; k < 3; k++) {
+    const col = document.createElement('div');
+    col.innerHTML = `<h3>Neuron ${k + 1}</h3>`;
+    col.appendChild(mk('a', p.W1, k, -4, 4)); col.appendChild(mk('b', p.b1, k, -4, 4)); col.appendChild(mk('c', p.W2, k, -3, 3));
+    grid.appendChild(col);
+  }
+  box.appendChild(grid);
+  box.appendChild(mk('d', p.b2, 0, -2, 2)).querySelector('label').innerHTML = 'output bias d = <span id="cs-d-0-v">' + fmt(p.b2[0]) + '</span>';
+}
+function curveSyncSliders() {
+  const p = C.net.p;
+  for (let k = 0; k < 3; k++) [['a', p.W1], ['b', p.b1], ['c', p.W2]].forEach(([l, arr]) => { const el = document.getElementById(`cs-${l}-${k}`); if (el) { el.value = arr[k]; document.getElementById(`cs-${l}-${k}-v`).textContent = fmt(arr[k]); } });
+  const d = document.getElementById('cs-d-0'); if (d) { d.value = p.b2[0]; document.getElementById('cs-d-0-v').textContent = fmt(p.b2[0]); }
+}
+function curveDraw() {
+  if (!document.getElementById('view-curve').classList.contains('active')) return;
+  const { ctx, W, H } = canvas2d('cCanvas', 0.44);
+  const pad = { l: 36, r: 12, t: 12, b: 26 }, X = x => pad.l + (x + 3) / 6 * (W - pad.l - pad.r), Y = y => pad.t + (1 - (y + 2.5) / 5) * (H - pad.t - pad.b);
+  ctx.strokeStyle = cssVar('--line'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(W - pad.r, Y(0)); ctx.moveTo(X(0), pad.t); ctx.lineTo(X(0), H - pad.b); ctx.stroke();
+  ctx.fillStyle = cssVar('--ink-soft'); ctx.font = '12px "Instrument Sans", sans-serif'; ctx.textAlign = 'center';
+  [-3, -2, -1, 1, 2, 3].forEach(x => ctx.fillText(x, X(x), H - pad.b + 16)); ctx.textAlign = 'right'; [-2, -1, 1, 2].forEach(y => ctx.fillText(y, pad.l - 6, Y(y) + 4));
+  const tf = TARGETS[C.target], p = C.net.p, A = ACT[C.act];
+  // neuron contributions
+  for (let k = 0; k < 3; k++) {
+    ctx.strokeStyle = cssVar('--marker'); ctx.globalAlpha = 0.25; ctx.lineWidth = 1.5; ctx.beginPath();
+    CX.forEach(([x], i) => { const y = p.W2[k] * A.f(p.W1[k] * x + p.b1[k]); i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); }); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = cssVar('--teal'); ctx.lineWidth = 3; ctx.beginPath(); CX.forEach(([x], i) => { i ? ctx.lineTo(X(x), Y(tf(x))) : ctx.moveTo(X(x), Y(tf(x))); }); ctx.stroke();
+  let mse = 0, vr = 0, mean = 0; CX.forEach(([x]) => mean += tf(x)); mean /= CX.length;
+  ctx.strokeStyle = cssVar('--marker'); ctx.lineWidth = 3; ctx.beginPath();
+  CX.forEach(([x], i) => { const y = C.net.forward([x]).out; mse += (y - tf(x)) ** 2; vr += (tf(x) - mean) ** 2; i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); }); ctx.stroke();
+  mse /= CX.length; vr /= CX.length;
+  const match = Math.max(0, 1 - mse / vr) * 100;
+  document.getElementById('cScore').textContent = fmt(match, 0) + '%'; document.getElementById('cMse').textContent = fmt(mse, 3);
+  ctx.fillStyle = cssVar('--teal'); ctx.textAlign = 'left'; ctx.fillText('target', pad.l + 8, pad.t + 14); ctx.fillStyle = cssVar('--marker'); ctx.fillText('your network', pad.l + 60, pad.t + 14);
+  if (match > 97) setMsg('cMsg', 'Excellent match. Try another target or a different activation.', 'good');
+}
+document.getElementById('cAuto').addEventListener('click', () => {
+  if (C.anim) { cancelAnimationFrame(C.anim); C.anim = null; return; }
+  const tf = TARGETS[C.target], Y = CX.map(([x]) => tf(x)); let n = 0;
+  setMsg('cMsg', 'Gradient descent is turning the sliders. If it stalls with a linear activation, that is the point.', '');
+  const tick = () => { C.net.train(CX, Y, 0.05, 8); n += 8; curveSyncSliders(); curveDraw(); if (n < 800) C.anim = requestAnimationFrame(tick); else { C.anim = null; setMsg('cMsg', `Stopped after ${n} steps. This is the best the computer found from where you left the sliders.`, ''); } };
+  C.anim = requestAnimationFrame(tick);
+});
+document.getElementById('cReset').addEventListener('click', curveReset);
+document.getElementById('cTarget').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pressChips(e.currentTarget, b); C.target = b.dataset.t; setMsg('cMsg', 'New target. Faint lines show what each neuron contributes on its own.', ''); curveDraw(); });
+document.getElementById('cAct').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pressChips(e.currentTarget, b); C.act = b.dataset.act; C.net.act = C.act; setMsg('cMsg', C.act === 'linear' ? 'Linear: every neuron is a straight line, and the sum of straight lines is a straight line.' : 'Activation changed; same sliders, new shapes.', ''); curveDraw(); });
+
+/* =====================================================
+   GAME 5: SEPARATE THE DOTS
+   ===================================================== */
+const D = { data: 'blobs', nHid: 2, act: 'relu', net: null, X: [], Y: [], epoch: 0, anim: null };
+function dotsData() {
+  const X = [], Y = [], n = 100;
+  const push = (x, y, c) => { X.push([x, y]); Y.push(c); };
+  for (let i = 0; i < n; i++) {
+    const r = Math.random(), s = Math.random();
+    if (D.data === 'blobs') { const c = i % 2; push((c ? 0.5 : -0.5) + randn() * 0.22, (c ? 0.4 : -0.4) + randn() * 0.22, c); }
+    else if (D.data === 'xor') { const a = Math.random() < 0.5 ? 1 : -1, b = Math.random() < 0.5 ? 1 : -1; push(a * 0.5 + randn() * 0.18, b * 0.5 + randn() * 0.18, a * b > 0 ? 1 : 0); }
+    else if (D.data === 'circle') { const c = i % 2, rad = c ? 0.25 * Math.sqrt(r) : 0.6 + 0.3 * r, th = s * 2 * Math.PI; push(rad * Math.cos(th), rad * Math.sin(th), c); }
+    else if (D.data === 'moons') { const c = i % 2, th = r * Math.PI; push(c ? 0.5 * Math.cos(th) - 0.25 + randn() * 0.07 : 0.5 * Math.cos(th + Math.PI) + 0.25 + randn() * 0.07, c ? 0.5 * Math.sin(th) - 0.15 + randn() * 0.07 : 0.5 * Math.sin(th + Math.PI) + 0.15 + randn() * 0.07, c); }
+    else { const c = i % 2, t = 0.2 + r * 0.8, th = t * 2.6 * Math.PI + c * Math.PI; push(t * 0.9 * Math.cos(th) + randn() * 0.03, t * 0.9 * Math.sin(th) + randn() * 0.03, c); }
+  }
+  D.X = X; D.Y = Y;
+}
+function dotsReset() {
+  if (D.anim) { cancelAnimationFrame(D.anim); D.anim = null; document.getElementById('dTrain').textContent = 'Train'; }
+  D.net = new Net(2, D.nHid, D.act, true); D.epoch = 0;
+  document.getElementById('dEpoch').textContent = '0'; document.getElementById('dAcc').textContent = '–'; document.getElementById('dLoss').textContent = '–';
+  dotsDraw();
+}
+function dotsDraw() {
+  if (!document.getElementById('view-dots').classList.contains('active')) return;
+  const { ctx, W, H } = canvas2d('dCanvas', 1);
+  const X = x => (x + 1.2) / 2.4 * W, Y = y => (1 - (y + 1.2) / 2.4) * H;
+  const G = 44, cw = W / G + 0.5, ch = H / G + 0.5;
+  const teal = cssVar('--teal'), mark = cssVar('--marker');
+  for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) {
+    const x = -1.2 + (i + 0.5) / G * 2.4, y = 1.2 - (j + 0.5) / G * 2.4;
+    const p = D.net.forward([x, y]).out;
+    ctx.fillStyle = p > 0.5 ? teal : mark; ctx.globalAlpha = Math.min(0.55, Math.abs(p - 0.5) * 1.3);
+    ctx.fillRect(i / G * W, j / G * H, cw, ch);
+  }
+  ctx.globalAlpha = 1;
+  D.X.forEach((pt, n) => { ctx.fillStyle = D.Y[n] ? teal : mark; ctx.beginPath(); ctx.arc(X(pt[0]), Y(pt[1]), 5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = cssVar('--card'); ctx.lineWidth = 1.5; ctx.stroke(); });
+}
+function dotsStats(loss) {
+  let ok = 0; D.X.forEach((x, n) => { if ((D.net.forward(x).out > 0.5 ? 1 : 0) === D.Y[n]) ok++; });
+  document.getElementById('dEpoch').textContent = D.epoch; document.getElementById('dAcc').textContent = fmt(ok / D.X.length * 100, 0) + '%'; document.getElementById('dLoss').textContent = fmt(loss, 3);
+  return ok / D.X.length;
+}
+document.getElementById('dTrain').addEventListener('click', e => {
+  if (D.anim) { cancelAnimationFrame(D.anim); D.anim = null; e.target.textContent = 'Train'; return; }
+  e.target.textContent = 'Pause';
+  const tick = () => {
+    const loss = D.net.train(D.X, D.Y, 0.03, 5); D.epoch += 5; const acc = dotsStats(loss); dotsDraw();
+    if (D.epoch % 100 === 0) {
+      if (acc > 0.97) setMsg('dMsg', `Separated: ${fmt(acc * 100, 0)}% accuracy with ${D.nHid} hidden neuron${D.nHid === 1 ? '' : 's'}.`, 'good');
+      else if (D.epoch >= 600 && acc < 0.8) setMsg('dMsg', D.nHid === 0 ? 'A single straight line cannot do this. Give the network a hidden layer.' : 'Stuck. Either this shape needs more neurons, or a bad start killed one. Try reset, or add neurons.', 'bad');
+      else setMsg('dMsg', `Training: ${fmt(acc * 100, 0)}% accuracy so far.`, '');
+    }
+    if (D.epoch < 3000) D.anim = requestAnimationFrame(tick); else { D.anim = null; e.target.textContent = 'Train'; }
+  };
+  D.anim = requestAnimationFrame(tick);
+});
+document.getElementById('dReset').addEventListener('click', dotsReset);
+document.getElementById('dData').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pressChips(e.currentTarget, b); D.data = b.dataset.d; dotsData(); dotsReset(); setMsg('dMsg', 'New dataset. Guess how many neurons it needs before you train.', ''); });
+document.getElementById('dHid').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pressChips(e.currentTarget, b); D.nHid = +b.dataset.h; dotsReset(); });
+document.getElementById('dAct').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pressChips(e.currentTarget, b); D.act = b.dataset.act; dotsReset(); });
+
+/* =====================================================
+   GAME 6: MEMORIZE VS LEARN
+   ===================================================== */
+const O = { nHid: 4, net: null, train: [], test: [], epoch: 0, hist: [], committed: false, fn: null };
+function overfitNew() {
+  const a = rnd(1.8, 3.2), ph = rnd(0, 3);
+  O.fn = x => 0.9 * Math.sin(a * x + ph) + 0.3 * x;
+  const mk = n => { const X = [], Y = []; for (let i = 0; i < n; i++) { const x = -1 + 2 * (i + 0.5) / n + randn() * 0.02; X.push([x]); Y.push(O.fn(x) + randn() * 0.3); } return { X, Y }; };
+  O.train = mk(20); O.test = mk(40); O.committed = false;
+  document.getElementById('oChartPanel').hidden = true; document.getElementById('oScore').innerHTML = ''; document.getElementById('oTest').textContent = '?';
+  document.getElementById('oTrainBtn').disabled = false; document.getElementById('oCommit').disabled = false;
+  setMsg('oMsg', 'Train as much as you like. Commit when you think the fit will hold up on new data.', '');
+  overfitReset();
+}
+function overfitReset() {
+  O.net = new Net(1, O.nHid, 'tanh', false); O.epoch = 0; O.hist = [];
+  document.getElementById('oEpoch').textContent = '0'; document.getElementById('oTrain').textContent = '–';
+  overfitDraw();
+}
+function overfitDraw() {
+  if (!document.getElementById('view-overfit').classList.contains('active')) return;
+  const { ctx, W, H } = canvas2d('oCanvas', 0.46);
+  const pad = { l: 30, r: 12, t: 12, b: 24 }, X = x => pad.l + (x + 1.1) / 2.2 * (W - pad.l - pad.r), Y = y => pad.t + (1 - (y + 2) / 4) * (H - pad.t - pad.b);
+  ctx.strokeStyle = cssVar('--line'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, Y(0)); ctx.lineTo(W - pad.r, Y(0)); ctx.stroke();
+  if (O.committed) {
+    ctx.strokeStyle = cssVar('--ink-soft'); ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let x = -1.1; x <= 1.1; x += 0.02) { x > -1.1 ? ctx.lineTo(X(x), Y(O.fn(x))) : ctx.moveTo(X(x), Y(O.fn(x))); } ctx.stroke(); ctx.setLineDash([]);
+    O.test.X.forEach((p, i) => { ctx.fillStyle = cssVar('--teal'); ctx.beginPath(); ctx.arc(X(p[0]), Y(O.test.Y[i]), 4, 0, Math.PI * 2); ctx.fill(); });
+  }
+  ctx.strokeStyle = cssVar('--marker'); ctx.lineWidth = 3; ctx.beginPath();
+  for (let x = -1.1; x <= 1.1; x += 0.01) { const y = O.net.forward([x]).out; x > -1.1 ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); } ctx.stroke();
+  O.train.X.forEach((p, i) => { ctx.fillStyle = cssVar('--ink'); ctx.beginPath(); ctx.arc(X(p[0]), Y(O.train.Y[i]), 5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = cssVar('--card'); ctx.lineWidth = 1.5; ctx.stroke(); });
+  ctx.fillStyle = cssVar('--ink'); ctx.font = '12px "Instrument Sans", sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('● training points', pad.l + 8, pad.t + 14);
+  if (O.committed) { ctx.fillStyle = cssVar('--teal'); ctx.fillText('● hidden points', pad.l + 118, pad.t + 14); ctx.fillStyle = cssVar('--ink-soft'); ctx.fillText('- - true curve', pad.l + 222, pad.t + 14); }
+}
+function overfitChart() {
+  const { ctx, W, H } = canvas2d('oChart', 0.3);
+  const pad = { l: 40, r: 12, t: 12, b: 24 }, maxE = O.hist[O.hist.length - 1].e, maxL = Math.max(0.1, ...O.hist.map(h => Math.max(h.tr, h.te))) * 1.1;
+  const X = e => pad.l + e / maxE * (W - pad.l - pad.r), Y = l => pad.t + (1 - l / maxL) * (H - pad.t - pad.b);
+  ctx.strokeStyle = cssVar('--line'); ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, H - pad.b); ctx.lineTo(W - pad.r, H - pad.b); ctx.stroke();
+  ctx.fillStyle = cssVar('--ink-soft'); ctx.font = '12px "Instrument Sans", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('epochs', W / 2, H - 6); ctx.textAlign = 'right'; ctx.fillText(fmt(maxL / 1.1, 2), pad.l - 4, pad.t + 10); ctx.fillText('0', pad.l - 4, H - pad.b);
+  [['tr', '--marker'], ['te', '--teal']].forEach(([k, col]) => { ctx.strokeStyle = cssVar(col); ctx.lineWidth = 2.5; ctx.beginPath(); O.hist.forEach((h, i) => i ? ctx.lineTo(X(h.e), Y(h[k])) : ctx.moveTo(X(h.e), Y(h[k]))); ctx.stroke(); });
+}
+document.getElementById('oTrainBtn').addEventListener('click', () => {
+  for (let k = 0; k < 10; k++) { O.net.train(O.train.X, O.train.Y, 0.02, 30); O.epoch += 30; O.hist.push({ e: O.epoch, tr: O.net.loss(O.train.X, O.train.Y), te: O.net.loss(O.test.X, O.test.Y) }); }
+  document.getElementById('oEpoch').textContent = O.epoch; document.getElementById('oTrain').textContent = fmt(O.hist[O.hist.length - 1].tr, 3);
+  overfitDraw();
+});
+document.getElementById('oCommit').addEventListener('click', () => {
+  if (!O.epoch) { setMsg('oMsg', 'Train at least once before committing.', 'bad'); return; }
+  O.committed = true;
+  const tr = O.net.loss(O.train.X, O.train.Y), te = O.net.loss(O.test.X, O.test.Y);
+  const best = Math.min(...O.hist.map(h => h.te)), noiseFloor = 0.045;
+  document.getElementById('oTest').textContent = fmt(te, 3);
+  const stars = te < noiseFloor * 1.3 ? '★★★' : te < noiseFloor * 2 ? '★★☆' : '★☆☆';
+  const verdict = te > tr * 2.5 && te > noiseFloor * 1.5 ? 'The gap between the two errors is the signature of overfitting: the curve followed the noise in the training points.'
+    : te < noiseFloor * 1.3 ? 'Hidden-set error is close to the noise level, which is as good as it gets: the network learned the curve, not the noise.'
+    : tr > noiseFloor * 2 ? 'Both errors are high: the network is too small or undertrained to capture the curve.' : 'Decent. Compare with the best point on the chart below.';
+  document.getElementById('oScore').innerHTML = `<div class="score">${stars}</div>`;
+  setMsg('oMsg', `${verdict} Best hidden-set error you passed through: ${fmt(best, 3)}.`, te < noiseFloor * 1.3 ? 'good' : te > tr * 2.5 ? 'bad' : '');
+  document.getElementById('oTrainBtn').disabled = true; document.getElementById('oCommit').disabled = true;
+  document.getElementById('oChartPanel').hidden = false; overfitDraw(); overfitChart();
+});
+document.getElementById('oNew').addEventListener('click', overfitNew);
+document.getElementById('oHid').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || O.committed) return; pressChips(e.currentTarget, b); O.nHid = +b.dataset.h; overfitReset(); });
+
+window.addEventListener('resize', () => { curveDraw(); dotsDraw(); overfitDraw(); if (O.committed) overfitChart(); });
+
+/* ---------- boot ---------- */
+hikeNew(); blameNew(); neuronNew(); curveReset(); dotsData(); dotsReset(); overfitNew(); route();
+</script>
+</body>
+</html>
